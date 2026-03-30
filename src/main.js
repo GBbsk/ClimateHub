@@ -13,8 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ".visibility-value", ".pressure-value", 
         ".sunrise-display",".sunset-display",
         ".tempUnitSwitch", ".btnSearch",
-        ".loading-screen", ".resultadoBusca");
+        ".loading-screen", ".resultadoBusca",
+        ".forecast-card");
     const controler = new Controller(model, view);
 
-    controler.iniciar()
+    controler.init()
 });

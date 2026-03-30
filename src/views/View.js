@@ -8,7 +8,8 @@ export class View {
         selectVisibilityValue, selectPressureValue, 
         selectSunriseDisplay, selectSunsetDisplay, 
         selectTempUnitSwitch, selectBtnSearch, 
-        selectLoadingScrenn, selectListCity) {
+        selectLoadingScrenn, selectListCity,
+        selectDaysOfWeek) {
 
         this.searchBar = document.querySelector(selectSearchBar)
         this.currentTime = document.querySelector(selectCurrentTime)
@@ -33,19 +34,21 @@ export class View {
 
         this.loadingScreen = document.querySelector(selectLoadingScrenn)
         this.listCitys = document.querySelector(selectListCity)
+
+        this.daysOfWeek = document.querySelectorAll(selectDaysOfWeek)
     }
 
-    bindBtnBuscarCidade(handler){
+    bindBtnSearchCity(handler){
         this.btnSearch.addEventListener("click", handler)
     };
 
-    bindInputBuscarCity(handler){
+    bindInputSearchBarEnter(handler){
         this.searchBar.addEventListener("keydown", (e) => {
                 handler(e)
         })
     };
 
-    bindInputBuscarCityInput(handler){
+    bindInputSearchBarTyping(handler){
         this.searchBar.addEventListener("input", (e) => {
             handler(e)
         });
@@ -55,7 +58,7 @@ export class View {
         this.tempSwitch.addEventListener("change", handler)
     };
 
-    exibirInfos(dados) {
+    showData(dados) {
         const { cidade, clima } = dados;
         
         this.displayNameCity.textContent = `${cidade.nome}, ${cidade.pais}`;
@@ -73,12 +76,77 @@ export class View {
         this.sunsetDisplay.textContent = `${clima.porDoSol}`;
     };
 
-    exibirSymbols(symbol){
+    updateTime(timeString) {
+        this.currentTime.textContent = timeString;
+    }
+
+    updateDayWeek(day){
+        this.daysOfWeek.forEach(card => {
+            card.classList.toggle('active', card.dataset.dia === day)
+        })
+    }
+
+    showSymbol(symbol){
         this.symbolTemperature.forEach(item => {
             item.textContent = symbol;
         });
     };
 
+    bindDropdownClick(handler){
+        this.listCitys.addEventListener('click', (e) => {
+            e.preventDefault();
+        
+            const item = e.target.closest('.dropdown-item');
+            if (!item) return;
+            
+            const index = parseInt(item.dataset.index);
+            
+            // Chamar o handler do controller
+            handler(index);
+        });
+    }
 
-
+    // Estrutura do dropDown 
+    showDropDown(data) {
+    // Caso 1: Loading
+        if (data === 'loading') {
+            this.listCitys.innerHTML = '<li><span class="dropdown-item text-white">Buscando...</span></li>';
+            this.listCitys.style.display = 'block';
+            return;
+        }
+    
+    // Caso 2: Erro
+        if (data === 'error') {
+            this.listCitys.innerHTML = '<li><span class="dropdown-item text-danger">Erro ao buscar</span></li>';
+            this.listCitys.style.display = 'block';
+            return;
+        }
+    
+    // Caso 3: Sem resultados
+        if (!data || data.length === 0) {
+            this.listCitys.innerHTML = '<li><span class="dropdown-item">Nenhuma cidade encontrada</span></li>';
+            this.listCitys.style.display = 'block';
+            return;
+        }
+    
+    // Caso 4: Renderizar cidades
+        this.listCitys.innerHTML = '';
+        
+        data.forEach((cidade, index) => {
+            const li = document.createElement('li');
+            
+            li.innerHTML = `
+                <a class="dropdown-item" href="#" data-index="${index}">
+                    <strong>${cidade.nome}</strong>
+                    <small class="text-white opacity-75 d-block">
+                        ${cidade.estado ? cidade.estado + ', ' : ''}${cidade.pais}
+                    </small>
+                </a>
+            `;
+            
+            this.listCitys.appendChild(li);
+        });
+        
+            this.listCitys.style.display = 'block';
+        };
 }

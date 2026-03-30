@@ -14,6 +14,7 @@ liveReloadServer.watch([
     path.join(__dirname, 'src')
 ]);
 
+app.use(express.json());
 app.use(connectLiveReload());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/src', express.static(path.join(__dirname, 'src')));
@@ -32,36 +33,62 @@ app.use('/src', express.static(path.join(__dirname, 'src')));
     app.get('/api/cidade', async (req, res) => {
         try {
             const city = req.query.city;
-            const unitMedida = req.query.units
+            
+            if (!city || city.length < 3) {
+                return res.status(400).json({ error: 'Digite pelo menos 3 caracteres' });
+            };
 
-            const nameResponse = await fetch(
-                `${process.env.API_URL}/geo/1.0/direct?q=${city}&limit=5&appid=${process.env.API_KEY}`
-            );
+            const nameResponse = await fetch(`${process.env.API_URL}/geo/1.0/direct?q=${city}&limit=25&appid=${process.env.API_KEY}`);
 
             const geoData = await nameResponse.json();
 
             if (!geoData || geoData.length === 0) {
                 return res.status(404).json({ error: 'Cidade não encontrada' });
             };
+        
+            console.log(geoData[0]);
 
-            const { lat, lon, name, country, state } = geoData[0];
+            return res.json({
+                cidade: geoData.map(city => ({
+                    nome: city.name,
+                    pais: city.country,
+                    estado: city.state || "N/A",
+                    lat: city.lat,
+                    lon: city.lon
+                }))
+            });
 
-            const weatherResponse = await fetch(
-            `${process.env.API_URL}/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}&lang=pt_br&units=${unitMedida}`
-            );
+        } catch (error) {
+            return res.status(500).json({ error: 'Erro ao buscar cidade' });
+        }
+    });
 
+
+    app.post(`/api/clima`, async (req, res) => {
+        try {   
+            const { lat, lon, nome, pais, estado, units } = req.body;
+
+            if (!lat || !lon) {
+                return res.status(400).json({ error: 'Latitude e longitude são obrigatórias' });
+            }   
+
+            const weatherResponse = await fetch(`${process.env.API_URL}/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}&lang=pt_br&units=${units}`);
+
+            if (!weatherResponse.ok) {
+                return res.status(weatherResponse.status).json({ error: 'Falha ao obter dados do provedor de clima' });
+            }
+            
             const weatherData = await weatherResponse.json();
-
+            
             const descricao = weatherData.weather[0].description;
-
-            console.log(geoData);
+            
             console.log(weatherData);
 
             return res.json({
                 cidade: {
-                    nome: name,
-                    pais: country,
-                    estado: state || "N/A",
+                    nome: nome,
+                    pais: pais,
+                    estado: estado || "N/A",
                 },
                 clima: {
                     temperatura: Math.round(weatherData.main.temp),
@@ -87,8 +114,8 @@ app.use('/src', express.static(path.join(__dirname, 'src')));
             });
 
         } catch (error) {
-            return res.status(500).json({ error: 'Erro ao buscar cidade' });
-        }
-    });
+              return res.status(500).json({ error: 'Erro ao buscar cidade' });
+        };
+    })
 
 app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));

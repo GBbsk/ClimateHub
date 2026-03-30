@@ -1,4 +1,4 @@
-Melhorar a forma de pesquisa, colocar um dropdown de resultados.
+
 
 adicionar um cache de queries, e um historico de queries.
 

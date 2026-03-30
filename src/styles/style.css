@@ -131,9 +131,58 @@
     z-index: 9999;
   }
 
-  .resultadoBusca {
-    position: absolute;
-    z-index: 1000;
-    max-height: 200px;
-    overflow-y: auto; /* Adiciona scroll se tiver muitas cidades */
-}
+  /* Correção de Posicionamento e Estilização Dark Mode para o Dropdown */
+    .resultadoBusca {
+        position: absolute;
+        top: 100%; /* Empurra a lista exatamente para baixo da barra de pesquisa */
+        left: 0;   /* Alinha perfeitamente com a lateral esquerda */
+        right: 0;  /* Garante que não vaze o tamanho do pai */
+        
+        z-index: 1000; /* Mantém a lista acima de outros elementos da tela */
+        max-height: 250px; 
+        overflow-y: auto; /* Adiciona scroll customizado se necessário */
+        margin-top: 8px; /* Dá um respiro elegante entre a barra e a lista */
+        
+        /* === POLIMENTO VISUAL === */
+        background-color: var(--card-bg); /* Usa a mesma cor escura dos cards */
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6); /* Sombra para dar profundidade */
+        padding: 0;
+        list-style: none; /* Remove pontinhos indesejados caso apareçam */
+    }
+
+    /* Estilizando os itens da lista gerados dinamicamente no seu JS */
+    .resultadoBusca .dropdown-item {
+        color: #ffffff; /* Texto branco */
+        padding: 12px 20px;
+        border-bottom: 1px solid var(--border-color); /* Linha divisória sutil */
+        transition: all 0.2s ease-in-out;
+        cursor: pointer;
+    }
+
+    /* Remove a linha divisória do último item da lista */
+    .resultadoBusca li:last-child .dropdown-item {
+        border-bottom: none;
+    }
+
+    /* Efeito de hover (quando passa o mouse) */
+    .resultadoBusca .dropdown-item:hover {
+        background-color: rgba(88, 166, 255, 0.1); /* Fundo azul transparente */
+        color: var(--accent-blue); /* Texto azul */
+    }
+
+    /* Personalizando a barra de rolagem do dropdown (opcional, mas recomendado) */
+    .resultadoBusca::-webkit-scrollbar {
+        width: 8px;
+    }
+    .resultadoBusca::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .resultadoBusca::-webkit-scrollbar-thumb {
+        background: var(--border-color);
+        border-radius: 10px;
+    }
+    .resultadoBusca::-webkit-scrollbar-thumb:hover {
+        background: #484f58;
+    }
