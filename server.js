@@ -73,6 +73,7 @@ app.use('/src', express.static(path.join(__dirname, 'src')));
             }   
 
             const weatherResponse = await fetch(`${process.env.API_URL}/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}&lang=pt_br&units=${units}`);
+             // atualizacoes futuras `https://${process.env.API_URL}/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}&lang=pt_br&units=${units}`
 
             if (!weatherResponse.ok) {
                 return res.status(weatherResponse.status).json({ error: 'Falha ao obter dados do provedor de clima' });
@@ -82,7 +83,7 @@ app.use('/src', express.static(path.join(__dirname, 'src')));
             
             const descricao = weatherData.weather[0].description;
             
-            console.log(weatherData);
+            // console.log(weatherData);
 
             return res.json({
                 cidade: {
@@ -116,6 +117,35 @@ app.use('/src', express.static(path.join(__dirname, 'src')));
         } catch (error) {
               return res.status(500).json({ error: 'Erro ao buscar cidade' });
         };
+    }),
+
+    app.get(`/geo/ip`, async (req, res) => {
+        try {
+            const localizacao = await fetch(`http://ip-api.com/json/`)
+
+            if(!localizacao.ok){
+                throw new Error("Erro ao buscar localização!")
+            }
+
+            const response = await localizacao.json()
+
+            if (response.status === 'fail') {
+                throw new Error(response.message || 'Falha ao obter localização')
+            }
+
+            console.log('Localização obtida:', response)
+
+            return res.json ({
+                nameCity: response.city
+            })
+        } catch (error) {
+            console.error('Erro no endpoint /geo/ip:', error.message)
+
+            return res.status(500).json({ 
+            error: 'Não foi possível obter a localização',
+            details: error.message
+            })
+        }
     })
 
 app.listen(PORT, () => console.log(`Servidor rodando em http://localhost:${PORT}`));

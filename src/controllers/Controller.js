@@ -25,7 +25,13 @@ export class Controller {
         setInterval(() => {
         this.showTime();
         }, 1000); 
-        this.searchCity("Remanso")
+
+        const sucesso = await this.geolocationIP()
+    
+        if (!sucesso) {
+            console.log('Geolocalização falhou, usando São Paulo')
+            await this.searchCity("São Paulo")
+        }
 
         this.showDayOfWeek()
     };
@@ -58,7 +64,7 @@ export class Controller {
         
         this.view.listCitys.style.display = 'none';
         
-        this.buscarClima(cidadeSelecionada);
+        this.searchClimate(cidadeSelecionada);
     };
 
     symbolUnitCheck(){
@@ -145,11 +151,11 @@ export class Controller {
             const data = await response.json(); 
 
             if (data.cidade && data.cidade.length > 0) {
-                this.buscarClima(data.cidade[0]);
+                this.searchClimate(data.cidade[0]);
             } else {
                 alert("Cidade não encontrada.");
             }
-            console.log(`BUSCAR CIDADE ${data.cidade[0].nome}`)
+            // console.log(`BUSCAR CIDADE ${data.cidade[0].nome}`)
 
 
         } catch (error) {
@@ -158,7 +164,60 @@ export class Controller {
         this.hiddenLoading()
     };
 
-    async buscarClima(dados){
+    async geolocationIP(){
+        try {
+            this.showLoading()
+
+            const cachedLocation = localStorage.getItem('userLocation');
+            const cacheTime = localStorage.getItem('userLocationTime');
+
+            const CACHE_DURATION = 24 * 60 * 60 * 1000
+
+            if(cachedLocation && cacheTime){
+                const remainingTime = Date.now() - parseInt(cacheTime)
+
+                if(remainingTime < CACHE_DURATION){
+                    const location = JSON.parse(cachedLocation)
+                    // console.log(location)
+                    // console.log(`Cache expira em ${Math.round((CACHE_DURATION - remainingTime) / 1000 / 60)} minutos`)
+                    await this.searchCity(location)
+                    return true
+                } else {
+                    console.log('Cache expirado, buscando nova localização...')
+                }
+            }
+
+            const req = await fetch("/geo/ip")
+
+            if (!req.ok) {
+                const erro = await req.json()
+                throw new Error(erro.error || 'Erro ao obter localização')
+            }
+
+            const res = await req.json()
+           
+            if (res.nameCity) {
+                localStorage.setItem('userLocation', JSON.stringify(res.nameCity))
+                localStorage.setItem('userLocationTime', Date.now().toString())
+                
+                // console.log('Nova localização salva no cache:', res)
+
+                await this.searchCity(res.nameCity)
+                return true;
+            } else {
+                throw new Error('Cidade não encontrada na resposta')
+            };
+
+        } catch (error){
+            console.error('Erro na geolocalização:', error.message)
+            alert(`Ops, tivemos um problema: ${error.message}`)
+            return false;
+        } finally {
+            this.hiddenLoading()
+        }
+    };
+
+    async searchClimate(dados){
         const { simbolo, unidade } = this.symbolUnitCheck();
 
         try {
