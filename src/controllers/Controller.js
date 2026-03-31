@@ -14,7 +14,8 @@ export class Controller {
 
         this.view.bindBtnSearchCity(this.searchCity.bind(this))
         this.view.bindInputSearchBarEnter(this.verificarEnter.bind(this))
-        this.view.bindBtnTempSwitch(this.symbolUnitCheck.bind(this))
+        // this.view.bindBtnTempSwitch(this.symbolUnitCheck.bind(this))
+        this.view.bindBtnTempSwitch(this.symbolSwitchAutomatic.bind(this))
 
         this.view.bindInputSearchBarTyping(this.debounceSearch.bind(this))
         this.view.bindDropdownClick(this.handleCitySelect.bind(this))
@@ -68,18 +69,23 @@ export class Controller {
     };
 
     symbolUnitCheck(){
-        const imperial = { simbolo: "°F", unidade: "imperial" };
-        const metric = {simbolo: "°C", unidade: "metric"};
-        if(this.view.tempSwitch.checked){
-           return imperial;
-        } else {
-            return metric;
+        return this.view.tempSwitch.checked 
+        ? { simbolo: "°F", unidade: "imperial" } 
+        : { simbolo: "°C", unidade: "metric" };
+    };
+
+    async symbolSwitchAutomatic(){
+        if (this.model.historico.length > 0) {
+        const ultimoBusca = this.model.historico[this.model.historico.length - 1];
+        
+        const nomeDaCidade = ultimoBusca.cidade.nome;
+        
+        await this.searchCity(nomeDaCidade);
         }
     };
 
     showTime(){
         const agora = new Date();
-
 
         const horaFormatada = agora.toLocaleTimeString('pt-BR', {
             hour: '2-digit',
@@ -157,13 +163,52 @@ export class Controller {
             }
             // console.log(`BUSCAR CIDADE ${data.cidade[0].nome}`)
 
-
         } catch (error) {
             console.error(error);
-        };
-        this.hiddenLoading()
+        } finally {
+            this.hiddenLoading()
+        }
     };
 
+    
+    async searchClimate(dados){
+        
+        const { simbolo, unidade } = this.symbolUnitCheck();
+        
+        try {
+            this.showLoading()
+            
+            const response = await fetch("/api/clima", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    ...dados,
+                    units: unidade
+                })
+            });
+            
+            if (!response.ok) {
+                const erro = await response.json()
+                throw new Error(erro.error || 'Erro ao buscar cidade');
+            };
+
+            const data = await response.json();
+            
+            this.model.historico.push(data)
+
+            this.view.showData(data);
+            this.view.showSymbol(simbolo);
+            
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.hiddenLoading();
+            this.view.searchBar.value = "";
+        };
+    };
+    
     async geolocationIP(){
         try {
             this.showLoading()
@@ -217,50 +262,25 @@ export class Controller {
         }
     };
 
-    async searchClimate(dados){
-        const { simbolo, unidade } = this.symbolUnitCheck();
-
-        try {
-            this.showLoading()
-
-            const response = await fetch("/api/clima", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    ...dados,
-                    units: unidade
-                })
-            });
-
-            if (!response.ok) {
-                const erro = await response.json()
-                throw new Error(erro.error || 'Erro ao buscar cidade');
-            };
-
-            const data = await response.json();
-
-            this.view.showData(data);
-            this.view.showSymbol(simbolo);
-
-        } catch (error) {
-            console.error(error);
-        } finally {
-            this.hiddenLoading();
-            this.view.searchBar.value = "";
-        };
-    };
-
     showLoading(){
+
+        if (this.loadingTimeout) {
+            clearTimeout(this.loadingTimeout);
+        }
+
         this.loadingTimeout = setTimeout(() => {
             this.view.loadingScreen.classList.remove("d-none");
         }, 300);
     };
 
     hiddenLoading(){
-        clearTimeout(this.loadingTimeout)
-         this.view.loadingScreen.classList.add("d-none");
+
+        if (this.loadingTimeout) {
+            clearTimeout(this.loadingTimeout);
+            this.loadingTimeout = null;
+        }
+
+        this.view.loadingScreen.classList.add("d-none");
     };
 
 }
