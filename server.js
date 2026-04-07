@@ -66,13 +66,14 @@ app.use('/src', express.static(path.join(__dirname, 'src')));
 
     app.post(`/api/clima`, async (req, res) => {
         try {   
-            const { lat, lon, nome, pais, estado, units } = req.body;
+            const { lat, lon, nome, pais, estado, unidade } = req.body;
+            console.log(req.body)
 
             if (!lat || !lon) {
                 return res.status(400).json({ error: 'Latitude e longitude são obrigatórias' });
             }   
 
-            const weatherResponse = await fetch(`${process.env.API_URL}/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}&lang=pt_br&units=${units}`);
+            const weatherResponse = await fetch(`${process.env.API_URL}/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}&lang=pt_br&units=${unidade}`);
              // atualizacoes futuras `https://${process.env.API_URL}/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${process.env.API_KEY}&lang=pt_br&units=${units}`
 
             if (!weatherResponse.ok) {

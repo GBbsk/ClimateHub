@@ -1,12 +1,20 @@
 import { Model } from '../models/Model.js';
 import { View } from '../views/View.js';
-import { AuthService } from '../services/authService.js'
+import { CityService } from '../services/cityService.js';
+import { WeatherService } from '../services/weatherService.js';
+import { CacheService } from '../services/cacheService.js';
+import { GeolocationService } from '../services/geoService.js';
+
 
 export class Controller {
-    constructor(model, view, AuthService) {
+    constructor(model, view, cityService, weatherService, cacheService, geoService) {
         this.model = model;
         this.view = view;
-        this.AuthService = AuthService 
+        this.cityService = cityService;
+        this.weatherService = weatherService;
+        this.cacheService = cacheService;
+        this.geoService = geoService
+
         this.loadingTimeout = null;
 
         this.timer = null;
@@ -14,7 +22,6 @@ export class Controller {
 
         this.view.bindBtnSearchCity(this.searchCity.bind(this))
         this.view.bindInputSearchBarEnter(this.verificarEnter.bind(this))
-        // this.view.bindBtnTempSwitch(this.symbolUnitCheck.bind(this))
         this.view.bindBtnTempSwitch(this.symbolSwitchAutomatic.bind(this))
 
         this.view.bindInputSearchBarTyping(this.debounceSearch.bind(this))
@@ -55,7 +62,7 @@ export class Controller {
 
         this.timer = setTimeout(() => {
             this.searchCityAutoComplete(cityName)
-        }, 1000);
+        }, 500);
     };
 
     handleCitySelect(index) {
@@ -113,19 +120,17 @@ export class Controller {
     };
 
     async searchCityAutoComplete(nameCity) {
-        const { unidade } = this.symbolUnitCheck();
+        // const { unidade } = this.symbolUnitCheck();
 
         try {
             this.view.showDropDown('loading');
-            const response = await fetch(`/api/cidade?city=${nameCity}&units=${unidade}`);
+            const response = await this.cityService.buscarCidades(nameCity)
 
-            if (!response.ok) {
-                const erro = await response.json();
-                throw new Error(erro.error || 'Erro ao buscar cidade');
+            if (!response) {
+                throw new Error('Erro ao buscar cidade');
             }
 
-            const data = await response.json(); 
-            this.listaDeCidades = data.cidade;
+            this.listaDeCidades = response.cidade;
             
             this.view.showDropDown(this.listaDeCidades); 
 
@@ -137,7 +142,6 @@ export class Controller {
 
     async searchCity(name) {
         const nameCity = this.view.searchBar.value.trim() || name;
-        const { unidade } = this.symbolUnitCheck();
 
         if(!nameCity){
             alert ("Digite o nome de uma cidade, por favor!")
@@ -147,21 +151,13 @@ export class Controller {
         try {
             this.showLoading()
 
-            const response = await fetch(`/api/cidade?city=${nameCity}&units=${unidade}`)
+            const citys = await this.cityService.buscarCidades(nameCity)
 
-            if (!response.ok) {
-                const erro = await response.json()
-                throw new Error(erro.error || 'Erro ao buscar cidade');
-            }
-
-            const data = await response.json(); 
-
-            if (data.cidade && data.cidade.length > 0) {
-                this.searchClimate(data.cidade[0]);
+            if (citys.cidade && citys.cidade.length > 0) {
+                this.searchClimate(citys.cidade[0]);
             } else {
                 alert("Cidade não encontrada.");
             }
-            // console.log(`BUSCAR CIDADE ${data.cidade[0].nome}`)
 
         } catch (error) {
             console.error(error);
@@ -172,33 +168,20 @@ export class Controller {
 
     
     async searchClimate(dados){
-        
         const { simbolo, unidade } = this.symbolUnitCheck();
-        
+
+        const { lat, lon, nome, pais, estado } = dados;
+
+        const dataFULL = { lat, lon, nome, pais, estado, unidade };
+
         try {
             this.showLoading()
+                        
+            const clima = await this.weatherService.searchClimateAPI(dataFULL)
             
-            const response = await fetch("/api/clima", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    ...dados,
-                    units: unidade
-                })
-            });
-            
-            if (!response.ok) {
-                const erro = await response.json()
-                throw new Error(erro.error || 'Erro ao buscar cidade');
-            };
+            this.model.adicionarHistorico(clima)
 
-            const data = await response.json();
-            
-            this.model.historico.push(data)
-
-            this.view.showData(data);
+            this.view.showData(clima);
             this.view.showSymbol(simbolo);
             
         } catch (error) {
@@ -213,49 +196,26 @@ export class Controller {
         try {
             this.showLoading()
 
-            const cachedLocation = localStorage.getItem('userLocation');
-            const cacheTime = localStorage.getItem('userLocationTime');
+            const cachedLocation = this.cacheService.obter('userLocation');
 
-            const CACHE_DURATION = 24 * 60 * 60 * 1000
-
-            if(cachedLocation && cacheTime){
-                const remainingTime = Date.now() - parseInt(cacheTime)
-
-                if(remainingTime < CACHE_DURATION){
-                    const location = JSON.parse(cachedLocation)
-                    // console.log(location)
-                    // console.log(`Cache expira em ${Math.round((CACHE_DURATION - remainingTime) / 1000 / 60)} minutos`)
-                    await this.searchCity(location)
-                    return true
-                } else {
-                    console.log('Cache expirado, buscando nova localização...')
-                }
+            if(cachedLocation){
+                await this.searchCity(cachedLocation)
+                return true
             }
 
-            const req = await fetch("/geo/ip")
+            // console.log('Buscando nova localização...')
+            const req = await this.geoService.geolocationIP()
 
-            if (!req.ok) {
-                const erro = await req.json()
+            if (!req) {
                 throw new Error(erro.error || 'Erro ao obter localização')
             }
-
-            const res = await req.json()
            
-            if (res.nameCity) {
-                localStorage.setItem('userLocation', JSON.stringify(res.nameCity))
-                localStorage.setItem('userLocationTime', Date.now().toString())
-                
-                // console.log('Nova localização salva no cache:', res)
-
-                await this.searchCity(res.nameCity)
-                return true;
-            } else {
-                throw new Error('Cidade não encontrada na resposta')
-            };
+            this.cacheService.salvar('userLocation', req.nameCity) // res.nameCity - se der erro           
+            await this.searchCity(req.nameCity)
+            return true;
 
         } catch (error){
             console.error('Erro na geolocalização:', error.message)
-            alert(`Ops, tivemos um problema: ${error.message}`)
             return false;
         } finally {
             this.hiddenLoading()
@@ -263,7 +223,6 @@ export class Controller {
     };
 
     showLoading(){
-
         if (this.loadingTimeout) {
             clearTimeout(this.loadingTimeout);
         }
@@ -274,7 +233,6 @@ export class Controller {
     };
 
     hiddenLoading(){
-
         if (this.loadingTimeout) {
             clearTimeout(this.loadingTimeout);
             this.loadingTimeout = null;
